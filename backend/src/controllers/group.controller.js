@@ -1,5 +1,19 @@
 import { prisma } from '../config/prisma.js';
 
+// Admin: list every group in the system (used when targeting an assignment at specific groups).
+export async function listAllGroups(req, res) {
+  try {
+    const groups = await prisma.group.findMany({
+      include: { members: { include: { user: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ groups });
+  } catch (err) {
+    console.error('listAllGroups error:', err);
+    res.status(500).json({ message: 'Something went wrong fetching groups.' });
+  }
+}
+
 // Student creates a new group. The creator is automatically added as a member.
 export async function createGroup(req, res) {
   try {

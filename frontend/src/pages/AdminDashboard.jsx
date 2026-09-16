@@ -1,7 +1,37 @@
+import { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { assignmentsApi } from '../api/assignments';
+import { groupsApi } from '../api/groups';
+import AssignmentForm from '../components/AssignmentForm';
+import SubmissionsTracker from '../components/SubmissionsTracker';
+import AnalyticsPanel from '../components/AnalyticsPanel';
 
 export default function AdminDashboard() {
   const { user, logout } = useAuth();
+  const [assignments, setAssignments] = useState([]);
+  const [groups, setGroups] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const loadAll = useCallback(async () => {
+    setError('');
+    try {
+      const [assignmentList, groupList] = await Promise.all([
+        assignmentsApi.list(),
+        groupsApi.all(),
+      ]);
+      setAssignments(assignmentList);
+      setGroups(groupList);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Something went wrong loading the dashboard.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAll();
+  }, [loadAll]);
 
   return (
     <div className="min-h-screen bg-slate-50 p-8">
@@ -12,20 +42,28 @@ export default function AdminDashboard() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-lg shadow-sm p-5">
-          <h2 className="font-medium text-slate-900 mb-1">Assignments</h2>
-          <p className="text-sm text-slate-500">Create & edit assignments — Phase 7.</p>
+      {error && <div className="bg-red-50 text-red-700 text-sm rounded-md p-3 mb-4">{error}</div>}
+
+      {loading ? (
+        <p className="text-sm text-slate-500">Loading...</p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="bg-white rounded-lg shadow-sm p-5">
+            <h2 className="font-medium text-slate-900 mb-3">Post an Assignment</h2>
+            <AssignmentForm groups={groups} onCreated={loadAll} />
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm p-5">
+            <h2 className="font-medium text-slate-900 mb-3">Analytics</h2>
+            <AnalyticsPanel />
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm p-5 md:col-span-2">
+            <h2 className="font-medium text-slate-900 mb-3">Submissions Tracker</h2>
+            <SubmissionsTracker assignments={assignments} />
+          </div>
         </div>
-        <div className="bg-white rounded-lg shadow-sm p-5">
-          <h2 className="font-medium text-slate-900 mb-1">Submissions Tracker</h2>
-          <p className="text-sm text-slate-500">Group/student-wise status — Phase 7.</p>
-        </div>
-        <div className="bg-white rounded-lg shadow-sm p-5">
-          <h2 className="font-medium text-slate-900 mb-1">Analytics</h2>
-          <p className="text-sm text-slate-500">Completion charts & counts — Phase 7.</p>
-        </div>
-      </div>
+      )}
     </div>
   );
 }
