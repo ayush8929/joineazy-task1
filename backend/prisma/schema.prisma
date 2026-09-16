@@ -1,0 +1,117 @@
+// This is your Prisma schema file.
+// Docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  student
+  admin
+}
+
+enum TargetType {
+  all
+  group
+}
+
+enum SubmissionStatus {
+  pending
+  confirmed
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  name         String
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         Role
+  studentId    String?  @map("student_id") // only relevant for students
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  groupsCreated       Group[]            @relation("GroupCreator")
+  groupMemberships    GroupMember[]
+  assignmentsCreated  Assignment[]       @relation("AssignmentCreator")
+  submissionsConfirmed Submission[]      @relation("SubmissionConfirmer")
+
+  @@map("users")
+}
+
+model Group {
+  id           Int      @id @default(autoincrement())
+  name         String
+  createdBy    Int      @map("created_by_user_id")
+  creator      User     @relation("GroupCreator", fields: [createdBy], references: [id])
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  members            GroupMember[]
+  assignmentTargets  AssignmentTarget[]
+  submissions        Submission[]
+
+  @@map("groups")
+}
+
+model GroupMember {
+  id       Int      @id @default(autoincrement())
+  groupId  Int      @map("group_id")
+  userId   Int      @map("user_id")
+  joinedAt DateTime @default(now()) @map("joined_at")
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@map("group_members")
+}
+
+model Assignment {
+  id            Int        @id @default(autoincrement())
+  title         String
+  description   String?
+  dueDate       DateTime   @map("due_date")
+  oneDriveLink  String     @map("onedrive_link")
+  createdBy     Int        @map("created_by_admin_id")
+  creator       User       @relation("AssignmentCreator", fields: [createdBy], references: [id])
+  targetType    TargetType @default(all) @map("target_type")
+  createdAt     DateTime   @default(now()) @map("created_at")
+
+  targets     AssignmentTarget[]
+  submissions Submission[]
+
+  @@map("assignments")
+}
+
+// Only populated when an assignment's targetType = 'group' —
+// links the assignment to the specific group(s) it's assigned to.
+model AssignmentTarget {
+  id           Int      @id @default(autoincrement())
+  assignmentId Int      @map("assignment_id")
+  groupId      Int      @map("group_id")
+
+  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  group      Group      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([assignmentId, groupId])
+  @@map("assignment_targets")
+}
+
+model Submission {
+  id               Int               @id @default(autoincrement())
+  assignmentId     Int               @map("assignment_id")
+  groupId          Int               @map("group_id")
+  confirmedBy      Int?              @map("confirmed_by_user_id")
+  status           SubmissionStatus  @default(pending)
+  confirmedAt      DateTime?         @map("confirmed_at")
+
+  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  group      Group      @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  confirmer  User?      @relation("SubmissionConfirmer", fields: [confirmedBy], references: [id])
+
+  @@unique([assignmentId, groupId])
+  @@map("submissions")
+}
