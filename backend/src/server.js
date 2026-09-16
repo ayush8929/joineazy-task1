@@ -1,10 +1,12 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import { testConnection } from './config/prisma.js';
 import authRoutes from './routes/auth.routes.js';
-
-dotenv.config();
+import groupRoutes from './routes/group.routes.js';
+import assignmentRoutes from './routes/assignment.routes.js';
+import submissionRoutes from './routes/submission.routes.js';
+import analyticsRoutes from './routes/analytics.routes.js';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -17,10 +19,10 @@ app.get('/health', (req, res) => {
 });
 
 app.use('/api/auth', authRoutes);
-
-// Further route groups will be mounted here as they're built, e.g.:
-// import groupRoutes from './routes/group.routes.js';
-// app.use('/api/groups', groupRoutes);
+app.use('/api/groups', groupRoutes);
+app.use('/api/assignments', assignmentRoutes);
+app.use('/api/submissions', submissionRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 app.listen(PORT, async () => {
   console.log(`Backend running on http://localhost:${PORT}`);
