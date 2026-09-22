@@ -1,16 +1,16 @@
-import { prisma } from '../config/prisma.js';
+import { prisma } from "../config/prisma.js";
 
 // Admin: list every group in the system (used when targeting an assignment at specific groups).
 export async function listAllGroups(req, res) {
   try {
     const groups = await prisma.group.findMany({
       include: { members: { include: { user: true } } },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: "desc" },
     });
     res.json({ groups });
   } catch (err) {
-    console.error('listAllGroups error:', err);
-    res.status(500).json({ message: 'Something went wrong fetching groups.' });
+    console.error("listAllGroups error:", err);
+    res.status(500).json({ message: "Something went wrong fetching groups." });
   }
 }
 
@@ -18,14 +18,15 @@ export async function listAllGroups(req, res) {
 export async function createGroup(req, res) {
   try {
     const { name } = req.body;
-    if (!name) return res.status(400).json({ message: 'Group name is required.' });
+    if (!name)
+      return res.status(400).json({ message: "Group name is required." });
 
     const group = await prisma.group.create({
       data: {
         name,
         createdBy: req.user.id,
         members: {
-          create: { userId: req.user.id },
+          create: { userId: req.user.id, isLeader: true },
         },
       },
       include: { members: { include: { user: true } } },
@@ -33,8 +34,10 @@ export async function createGroup(req, res) {
 
     res.status(201).json({ group });
   } catch (err) {
-    console.error('createGroup error:', err);
-    res.status(500).json({ message: 'Something went wrong creating the group.' });
+    console.error("createGroup error:", err);
+    res
+      .status(500)
+      .json({ message: "Something went wrong creating the group." });
   }
 }
 
@@ -46,31 +49,39 @@ export async function addMember(req, res) {
     const { identifier } = req.body; // email OR student_id
 
     if (!identifier) {
-      return res.status(400).json({ message: 'Provide the student\'s email or student ID.' });
+      return res
+        .status(400)
+        .json({ message: "Provide the student's email or student ID." });
     }
 
     const membership = await prisma.groupMember.findUnique({
       where: { groupId_userId: { groupId, userId: req.user.id } },
     });
     if (!membership) {
-      return res.status(403).json({ message: 'You are not a member of this group.' });
+      return res
+        .status(403)
+        .json({ message: "You are not a member of this group." });
     }
 
     const targetUser = await prisma.user.findFirst({
       where: {
-        role: 'student',
+        role: "student",
         OR: [{ email: identifier }, { studentId: identifier }],
       },
     });
     if (!targetUser) {
-      return res.status(404).json({ message: 'No student found with that email or student ID.' });
+      return res
+        .status(404)
+        .json({ message: "No student found with that email or student ID." });
     }
 
     const existing = await prisma.groupMember.findUnique({
       where: { groupId_userId: { groupId, userId: targetUser.id } },
     });
     if (existing) {
-      return res.status(409).json({ message: 'This student is already in the group.' });
+      return res
+        .status(409)
+        .json({ message: "This student is already in the group." });
     }
 
     const newMember = await prisma.groupMember.create({
@@ -80,8 +91,10 @@ export async function addMember(req, res) {
 
     res.status(201).json({ member: newMember });
   } catch (err) {
-    console.error('addMember error:', err);
-    res.status(500).json({ message: 'Something went wrong adding the member.' });
+    console.error("addMember error:", err);
+    res
+      .status(500)
+      .json({ message: "Something went wrong adding the member." });
   }
 }
 
@@ -99,8 +112,10 @@ export async function myGroups(req, res) {
 
     res.json({ groups: memberships.map((m) => m.group) });
   } catch (err) {
-    console.error('myGroups error:', err);
-    res.status(500).json({ message: 'Something went wrong fetching your groups.' });
+    console.error("myGroups error:", err);
+    res
+      .status(500)
+      .json({ message: "Something went wrong fetching your groups." });
   }
 }
 
@@ -112,24 +127,23 @@ export async function groupProgress(req, res) {
     const membership = await prisma.groupMember.findUnique({
       where: { groupId_userId: { groupId, userId: req.user.id } },
     });
-    if (!membership && req.user.role !== 'admin') {
-      return res.status(403).json({ message: 'You are not a member of this group.' });
+    if (!membership && req.user.role !== "admin") {
+      return res
+        .status(403)
+        .json({ message: "You are not a member of this group." });
     }
 
     // Assignments visible to this group: target_type 'all', or targeted specifically at this group.
     const visibleAssignments = await prisma.assignment.findMany({
       where: {
-        OR: [
-          { targetType: 'all' },
-          { targets: { some: { groupId } } },
-        ],
+        OR: [{ targetType: "all" }, { targets: { some: { groupId } } }],
       },
     });
 
     const submissions = await prisma.submission.findMany({
       where: {
         groupId,
-        status: 'confirmed',
+        status: "confirmed",
         assignmentId: { in: visibleAssignments.map((a) => a.id) },
       },
     });
@@ -140,7 +154,9 @@ export async function groupProgress(req, res) {
 
     res.json({ groupId, total, confirmed, percentage });
   } catch (err) {
-    console.error('groupProgress error:', err);
-    res.status(500).json({ message: 'Something went wrong calculating progress.' });
+    console.error("groupProgress error:", err);
+    res
+      .status(500)
+      .json({ message: "Something went wrong calculating progress." });
   }
 }
