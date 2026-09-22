@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState } from "react";
 
 /**
  * The "two-step verification" required by the spec:
@@ -6,7 +6,12 @@ import { useState } from 'react';
  * Step 2: a confirmation dialog appears; they must click "Confirm" to finalize.
  * Only step 2 actually calls the API (see onConfirm).
  */
-export default function ConfirmSubmissionModal({ assignmentTitle, onConfirm, onClose }) {
+export default function ConfirmSubmissionModal({
+  assignmentTitle,
+  isIndividual,
+  onConfirm,
+  onClose,
+}) {
   const [busy, setBusy] = useState(false);
 
   async function handleConfirm() {
@@ -20,8 +25,10 @@ export default function ConfirmSubmissionModal({ assignmentTitle, onConfirm, onC
       <div className="bg-white rounded-lg shadow-lg max-w-sm w-full p-6 space-y-4">
         <h3 className="font-semibold text-slate-900">Confirm submission</h3>
         <p className="text-sm text-slate-600">
-          You're about to confirm that your group has submitted <strong>{assignmentTitle}</strong>.
-          This action can't be undone. Are you sure?
+          You're about to confirm that{" "}
+          {isIndividual ? "you have" : "your group has"} submitted{" "}
+          <strong>{assignmentTitle}</strong>. This action can't be undone. Are
+          you sure?
         </p>
         <div className="flex gap-2 justify-end">
           <button
@@ -36,7 +43,7 @@ export default function ConfirmSubmissionModal({ assignmentTitle, onConfirm, onC
             disabled={busy}
             className="px-4 py-2 text-sm rounded-md bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
           >
-            {busy ? 'Confirming...' : 'Confirm'}
+            {busy ? "Confirming..." : "Confirm"}
           </button>
         </div>
       </div>
