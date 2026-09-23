@@ -6,6 +6,7 @@ import Register from "./pages/Register";
 import StudentDashboard from "./pages/StudentDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import CourseAssignments from "./pages/CourseAssignments";
+import ProfessorCourseDetail from "./pages/ProfessorCourseDetail";
 
 export default function App() {
   return (
@@ -38,6 +39,15 @@ export default function App() {
             element={
               <ProtectedRoute role="admin">
                 <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/courses/:courseId"
+            element={
+              <ProtectedRoute role="admin">
+                <ProfessorCourseDetail />
               </ProtectedRoute>
             }
           />
