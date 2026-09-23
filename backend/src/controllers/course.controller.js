@@ -20,22 +20,61 @@ export async function createCourse(req, res) {
   }
 }
 
-// Professor: list courses they teach, with student/assignment counts.
+// Professor: list courses they teach, with student/assignment counts
+// and a rough submission completion percentage across that course.
 export async function myCoursesAsProfessor(req, res) {
   try {
     const courses = await prisma.course.findMany({
       where: { professorId: req.user.id },
-      include: { enrollments: true, assignments: true },
+      include: {
+        enrollments: true,
+        assignments: { include: { targets: true } },
+      },
       orderBy: { createdAt: "desc" },
     });
 
-    const withCounts = courses.map((c) => ({
-      id: c.id,
-      title: c.title,
-      description: c.description,
-      studentCount: c.enrollments.length,
-      assignmentCount: c.assignments.length,
-    }));
+    const totalGroupsCount = await prisma.group.count();
+
+    const withCounts = await Promise.all(
+      courses.map(async (c) => {
+        const studentCount = c.enrollments.length;
+
+        // Figure out how many submissions are "expected" vs confirmed across
+        // this course's assignments, mixing individual and group types.
+        let expected = 0;
+        let confirmed = 0;
+
+        for (const a of c.assignments) {
+          if (a.submissionType === "individual") {
+            expected += studentCount;
+            confirmed += await prisma.submission.count({
+              where: { assignmentId: a.id, status: "confirmed" },
+            });
+          } else {
+            // group-type: "all" targets every group system-wide (same
+            // approximation the overall analytics endpoint uses, since
+            // groups aren't scoped to a single course yet); "group" targets
+            // only the specific groups chosen when the assignment was made.
+            const groupCount =
+              a.targetType === "all" ? totalGroupsCount : a.targets.length;
+            expected += groupCount;
+            confirmed += await prisma.submission.count({
+              where: { assignmentId: a.id, status: "confirmed" },
+            });
+          }
+        }
+
+        return {
+          id: c.id,
+          title: c.title,
+          description: c.description,
+          studentCount,
+          assignmentCount: c.assignments.length,
+          completionPercentage:
+            expected === 0 ? 0 : Math.round((confirmed / expected) * 100),
+        };
+      }),
+    );
 
     res.json({ courses: withCounts });
   } catch (err) {
